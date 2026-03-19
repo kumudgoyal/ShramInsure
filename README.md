@@ -234,35 +234,35 @@ Three distinct ML layers power GigShield's intelligence. We've kept the logic gr
 ### Architecture Overview
 
 ```
-┌──────────────────────────────────────────────────┐
-│                  GigShield Platform               │
-│                                                   │
-│  ┌──────────┐    ┌──────────────────────────┐    │
-│  │  Worker  │◄──►│   React Native App        │    │
-│  │  Mobile  │    │ (Onboarding, Policy, UX)  │    │
-│  └──────────┘    └────────────┬─────────────┘    │
-│                               │                   │
-│                    ┌──────────▼─────────┐         │
-│                    │    API Gateway      │         │
-│                    │  (Node.js/Express)  │         │
-│                    └──────────┬──────────┘        │
-│            ┌──────────────────┼───────────────┐   │
-│   ┌────────▼──────┐  ┌───────▼──────┐ ┌──────▼──┐│
-│   │ Risk Engine   │  │   Trigger    │ │ Fraud   ││
-│   │ (XGBoost /    │  │  Monitoring  │ │ Engine  ││
-│   │  FastAPI)     │  │(Kafka+Python)│ │(Iso.Forest)│
-│   └───────────────┘  └──────┬───────┘ └────┬────┘│
-│                    ┌────────▼───────────────▼──┐  │
-│                    │     Payout Orchestrator     │  │
-│                    │    (Razorpay / UPI Mock)    │  │
-│                    └────────────────────────────┘  │
-└──────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────┐
+│                  GigShield Platform                   │
+│                                                       │
+│  ┌──────────┐    ┌───────────────────────────┐        │
+│  │  Worker  │◄──►│   React Native App        │        │
+│  │  Mobile  │    │ (Onboarding, Policy, UX)  │        │
+│  └──────────┘    └────────────┬──────────────┘        │
+│                               │                       │
+│                    ┌──────────▼──────────┐            │
+│                    │    API Gateway      │            │
+│                    │  (Node.js/Express)  │            │
+│                    └─────────┬───────────┘            │
+│            ┌─────────────────┼─────────────┐          │
+│   ┌────────▼──────┐  ┌───────▼──────┐ ┌────▼───────┐  │
+│   │ Risk Engine   │  │   Trigger    │ │ Fraud      │  │
+│   │ (XGBoost /    │  │  Monitoring  │ │ Engine     │  │
+│   │  FastAPI)     │  │(Kafka+Python)│ │(Iso.Forest)│  │
+│   └───────────────┘  └──────┬───────┘ └─────┬──────┘  │
+│                    ┌────────▼───────────────▼──┐      │
+│                    │     Payout Orchestrator   │      │
+│                    │    (Razorpay / UPI Mock)  │      │
+│                    └───────────────────────────┘      │
+└───────────────────────────────────────────────────────┘
          │                                │
-  ┌──────▼──────┐                ┌────────▼────────┐
-  │ External APIs│                │  PostgreSQL +   │
-  │(IMD,CPCB,   │                │   Redis Cache   │
-  │ Civic Feeds) │                └─────────────────┘
-  └─────────────┘
+  ┌──────▼───────┐               ┌────────▼────────┐
+  │ External APIs│               │  PostgreSQL +   │
+  │(IMD,CPCB,    │               │   Redis Cache   │
+  │ Civic Feeds) │               └─────────────────┘
+  └──────────────┘
 ```
 
 ---
