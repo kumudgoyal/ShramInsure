@@ -44,9 +44,16 @@ export default function Layout() {
 
   return (
    <div className="flex flex-col md:flex-row min-h-screen bg-[var(--surface)]">
-
+{open && (
+ <div
+  className="fixed inset-0 bg-black/60 z-40 md:hidden"
+  onClick={() => setOpen(false)
+  }}
+/>
+)}
       {/* ── SIDEBAR ── */}
       <aside
+  onClick={(e) => e.stopPropagation()}
   className={`fixed z-50 top-0 left-0 h-full bg-[var(--surface-1)] transform transition-transform duration-300 
   ${open ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static`}
   style={{
@@ -174,7 +181,7 @@ export default function Layout() {
         <nav style={{flex:1,padding:'10px 10px',display:'flex',flexDirection:'column',gap:2}}>
           <div className="font-mono" style={{fontSize:9,color:'var(--text-muted)',letterSpacing:'0.14em',textTransform:'uppercase',paddingLeft:8,marginBottom:5}}>Navigation</div>
           {NAV.map(({to,label,sub,d}) => (
-            <NavLink key={to} to={to} style={{textDecoration:'none'}}>
+            <NavLink key={to} to={to} onClick={() => setOpen(false)} style={{textDecoration:'none'}}>
               {({isActive}) => (
                 <motion.div
                   whileHover={{ x: 2 }}
@@ -257,7 +264,10 @@ export default function Layout() {
 
       <button
         className="md:hidden"
-        onClick={() => setOpen(!open)}
+        onClick={(e) => {
+  e.stopPropagation();
+  setOpen(!open);
+}}
         style={{
           fontSize: 20,
           color: 'var(--text-primary)',
