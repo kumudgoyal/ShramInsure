@@ -124,7 +124,7 @@ export default function Dashboard() {
       </AnimatePresence>
 
       {/* KPI row */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14, marginBottom:20 }}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
         {[
           { label:'Earnings Protected', value:`₹${(stats.earningsProtected||0).toLocaleString('en-IN')}`, sub:'This month', accent:'var(--green)' },
           { label:'Total Payouts', value:`₹${(stats.totalPayout||0).toLocaleString('en-IN')}`, sub:'Lifetime', accent:'#60a5fa' },
@@ -142,7 +142,7 @@ export default function Dashboard() {
 
       {/* ── AI RISK + PREDICTION STRIP ── */}
       {(risk || prediction) && (
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginBottom:20 }}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
 
           {/* AI Risk Score */}
           {risk && (
@@ -214,7 +214,7 @@ export default function Dashboard() {
                   color:prediction.risk24h>70?'#f87171':prediction.risk24h>40?'#facc15':'#00ff87',
                 }}>{prediction.risk24h}% risk</div>
               </div>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:12 }}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
                 {[
                   { label:'Loss Today', val:`₹${prediction.estimatedLoss24h}`, accent:'#f87171' },
                   { label:'7-Day Est.', val:`₹${prediction.totalWeeklyLoss}`, accent:'#fb923c' },
@@ -245,7 +245,7 @@ export default function Dashboard() {
       )}
 
       {/* Policy + Chart */}
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 2fr', gap:16, marginBottom:20 }}>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-5">
         {/* Policy card */}
         <div style={{ padding:'20px', borderRadius:12, background:'var(--surface-1)', border:'1px solid var(--border)', position:'relative', overflow:'hidden' }}>
           <div style={{ position:'absolute', bottom:-10, right:-10, opacity:0.07 }}>
@@ -330,7 +330,7 @@ export default function Dashboard() {
               <span className="font-mono" style={{ fontSize:9, color:'var(--text-muted)' }}>5 automated triggers · Mock API</span>
             </div>
           </div>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12 }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {[
               { icon:'🌧', label:'Rainfall', val:`${env.weather?.rainfall?.toFixed(1)||0} mm/hr`, thresh:65, actual:env.weather?.rainfall||0, trigger:'WEATHER_RAIN' },
               { icon:'🌡', label:'Temperature', val:`${env.weather?.temp?.toFixed(1)||0}°C`, thresh:42, actual:env.weather?.temp||0, trigger:'WEATHER_HEAT' },
