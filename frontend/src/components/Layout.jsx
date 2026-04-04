@@ -32,6 +32,7 @@ export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [tick, setTick] = useState(new Date());
+  const [open, setOpen] = useState(false);
   useEffect(() => { const t = setInterval(() => setTick(new Date()), 1000); return () => clearInterval(t); }, []);
 
   const handleLogout = () => { logout(); toast.success('Signed out'); navigate('/'); };
@@ -42,14 +43,22 @@ export default function Layout() {
   const monthsLeft = Math.max(0, 12 - months).toFixed(1);
 
   return (
-    <div style={{display:'flex',minHeight:'100vh',background:'var(--surface)'}}>
+   <div className="flex flex-col md:flex-row min-h-screen bg-[var(--surface)]">
 
       {/* ── SIDEBAR ── */}
-      <aside style={{
-        width:248, flexShrink:0, display:'flex', flexDirection:'column',
-        background:'var(--surface-1)', borderRight:'1px solid var(--border)',
-        position:'relative', overflow:'hidden',
-      }}>
+      <aside
+  className={`fixed z-50 top-0 left-0 h-full bg-[var(--surface-1)] transform transition-transform duration-300 
+  ${open ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static`}
+  style={{
+    width: '100%',
+    maxWidth: 248,
+    flexShrink: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    borderRight: '1px solid var(--border)',
+    overflow: 'hidden',
+  }}
+>
         {/* Animated green left pulse line */}
         <motion.div
           animate={{ opacity: [0.3, 0.7, 0.3] }}
@@ -84,6 +93,7 @@ export default function Layout() {
 
         {/* Worker card */}
         <div style={{margin:'14px 14px 0',padding:'13px',background:'var(--surface-2)',borderRadius:10,border:'1px solid var(--border)'}}>
+
           <div style={{display:'flex',alignItems:'center',gap:10}}>
             <motion.div
               whileHover={{ scale: 1.08 }}
@@ -223,43 +233,85 @@ export default function Layout() {
       </aside>
 
       {/* ── MAIN ── */}
-      <main style={{flex:1,overflow:'auto',display:'flex',flexDirection:'column',minWidth:0}}>
-        {/* Topbar */}
-        <div style={{
-          padding:'12px 28px',borderBottom:'1px solid var(--border)',
-          display:'flex',alignItems:'center',justifyContent:'space-between',
-          background:'var(--surface-1)',flexShrink:0,
-        }}>
-          <span className="font-mono" style={{fontSize:10,color:'var(--text-muted)',letterSpacing:'0.12em',textTransform:'uppercase'}}>
-            ShramInsure / {location.pathname.replace('/','') || 'dashboard'}
-          </span>
-          <div style={{display:'flex',alignItems:'center',gap:14}}>
-            <div style={{display:'flex',alignItems:'center',gap:6}}>
-              <motion.div
-                className="live-dot"
-                animate={{ scale: [1,1.5,1], opacity:[1,0.4,1] }}
-                transition={{ duration:1.5, repeat:Infinity }}
-              />
-              <span className="font-mono" style={{fontSize:10,color:'var(--green)',letterSpacing:'0.06em'}}>Systems Operational</span>
-            </div>
-            <div style={{height:14,width:1,background:'var(--border)'}}/>
-            <span className="font-mono" style={{fontSize:10,color:'var(--text-muted)'}}>{user?.platform}</span>
-          </div>
-        </div>
+<main style={{flex:1,overflow:'auto',display:'flex',flexDirection:'column',minWidth:0}}>
 
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={location.pathname}
-            initial={{opacity:0,y:12}}
-            animate={{opacity:1,y:0}}
-            exit={{opacity:0,y:-8}}
-            transition={{duration:0.25}}
-            style={{flex:1}}
-          >
-            <Outlet/>
-          </motion.div>
-        </AnimatePresence>
-      </main>
+  {/* Topbar */}
+  <div style={{
+    padding:'12px 16px',
+    borderBottom:'1px solid var(--border)',
+    display:'flex',
+    alignItems:'center',
+    justifyContent:'space-between',
+    background:'var(--surface-1)',
+    flexShrink:0,
+  }}>
+
+    {/* LEFT */}
+    <div style={{display:'flex', alignItems:'center', gap:10}}>
+
+      <button
+        className="md:hidden"
+        onClick={() => setOpen(!open)}
+        style={{
+          fontSize: 20,
+          color: 'var(--text-primary)',
+          background: 'transparent',
+          border: 'none'
+        }}
+      >
+        ☰
+      </button>
+
+      <span
+        className="font-mono"
+        style={{
+          fontSize:10,
+          color:'var(--text-muted)',
+          letterSpacing:'0.12em',
+          textTransform:'uppercase'
+        }}
+      >
+        ShramInsure / {location.pathname.replace('/','') || 'dashboard'}
+      </span>
+
+    </div>
+
+    {/* RIGHT */}
+    <div style={{display:'flex',alignItems:'center',gap:14}}>
+      <div style={{display:'flex',alignItems:'center',gap:6}}>
+        <motion.div
+          className="live-dot"
+          animate={{ scale: [1,1.5,1], opacity:[1,0.4,1] }}
+          transition={{ duration:1.5, repeat:Infinity }}
+        />
+        <span className="font-mono" style={{fontSize:10,color:'var(--green)',letterSpacing:'0.06em'}}>
+          Systems Operational
+        </span>
+      </div>
+
+      <div style={{height:14,width:1,background:'var(--border)'}}/>
+
+      <span className="font-mono" style={{fontSize:10,color:'var(--text-muted)'}}>
+        {user?.platform}
+      </span>
+    </div>
+
+  </div>
+
+  <AnimatePresence mode="wait">
+    <motion.div
+      key={location.pathname}
+      initial={{opacity:0,y:12}}
+      animate={{opacity:1,y:0}}
+      exit={{opacity:0,y:-8}}
+      transition={{duration:0.25}}
+      style={{flex:1}}
+    >
+      <Outlet/>
+    </motion.div>
+  </AnimatePresence>
+
+</main>
     </div>
   );
 }
