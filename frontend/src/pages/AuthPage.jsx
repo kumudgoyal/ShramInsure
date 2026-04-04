@@ -80,15 +80,16 @@ export default function AuthPage() {
   };
 
   return (
-    <div style={{ minHeight:'100vh', background:'#080808', display:'flex', position:'relative', overflow:'hidden' }}>
+    <div className="min-h-screen bg-[#080808] flex flex-col md:flex-row relative overflow-hidden">
 
       {/* BG radial glow */}
       <div style={{ position:'fixed', top:'-30%', left:'-10%', width:'70vw', height:'70vw', borderRadius:'50%', background:'radial-gradient(circle, rgba(0,255,135,0.04) 0%, transparent 65%)', pointerEvents:'none' }}/>
       <div style={{ position:'fixed', bottom:'-20%', right:'-5%', width:'50vw', height:'50vw', borderRadius:'50%', background:'radial-gradient(circle, rgba(0,200,100,0.03) 0%, transparent 65%)', pointerEvents:'none' }}/>
 
       {/* ── LEFT PANEL ── */}
-      <div style={{
-        width:'44%', flexShrink:0, display:'flex', flexDirection:'column',
+      <div className="hidden md:flex md:w-[44%]"
+  style={{
+    flexShrink:0, display:'flex', flexDirection:'column',
         background:'#0a0a0a', borderRight:'1px solid #181818',
         padding:'0', position:'relative', overflow:'hidden',
       }}>
@@ -178,8 +179,8 @@ export default function AuthPage() {
       </div>
 
       {/* ── RIGHT PANEL ── */}
-      <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:'48px 48px' }}>
-        <div style={{ width:'100%', maxWidth:380 }}>
+      <div className="flex-1 flex items-center justify-center px-4 py-8 md:p-12">
+        <div className="w-full max-w-sm">
           <AnimatePresence mode="wait">
             {isLogin ? (
               <motion.div key="login" initial={{opacity:0,x:20}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-20}} transition={{duration:0.22}}>
