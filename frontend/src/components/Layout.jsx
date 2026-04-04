@@ -152,7 +152,9 @@ export default function Layout() {
 
         {/* Zone badge */}
         <div style={{margin:'6px 14px 0',padding:'7px 12px',background:'rgba(0,255,135,0.03)',borderRadius:7,border:'1px solid rgba(0,255,135,0.08)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-          <span className="font-mono" style={{fontSize:10,color:'var(--text-secondary)'}}>{user?.zone} Zone</span>
+          <span className="font-mono" style={{fontSize:10,color:'var(--text-secondary)'}}>
+  {user?.zone ? `${user.zone} Zone` : ''}
+</span>
           {user?.is_admin
             ? <span className="font-mono" style={{fontSize:9,color:'#f59e0b',background:'rgba(245,158,11,0.1)',border:'1px solid rgba(245,158,11,0.2)',padding:'2px 7px',borderRadius:3,letterSpacing:'0.06em'}}>ADMIN</span>
             : <span className="font-mono" style={{fontSize:9,color:'var(--green)',background:'rgba(0,255,135,0.07)',border:'1px solid rgba(0,255,135,0.18)',padding:'2px 7px',borderRadius:3,letterSpacing:'0.06em'}}>ACTIVE</span>
