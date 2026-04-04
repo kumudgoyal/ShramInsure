@@ -29,7 +29,9 @@ const startServer = async () => {
   app.use('/api/predict',    require('./routes/predict'));
   app.use('/api/simulate',   require('./routes/simulate'));
   app.use('/api/fraud',      require('./routes/fraud'));
-
+  app.get("/", (_req, res) => {
+  res.send("ShramInsure API v3.0 is running 🚀");
+  });
   app.get('/api/health', (_req, res) => res.json({
     status: 'ok',
     service: 'ShramInsure API v3.0',
