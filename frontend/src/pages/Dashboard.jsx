@@ -141,7 +141,7 @@ export default function Dashboard() {
       </div>
 
       {/* ── AI RISK + PREDICTION STRIP ── */}
-      {(risk || prediction) && (
+      {(risk !== null || prediction !== null) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
 
           {/* AI Risk Score */}
