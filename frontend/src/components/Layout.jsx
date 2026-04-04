@@ -34,7 +34,9 @@ export default function Layout() {
   const [tick, setTick] = useState(new Date());
   const [open, setOpen] = useState(false);
   useEffect(() => { const t = setInterval(() => setTick(new Date()), 1000); return () => clearInterval(t); }, []);
-
+useEffect(() => {
+  setOpen(false);
+}, [location.pathname]);
   const handleLogout = () => { logout(); toast.success('Signed out'); navigate('/'); };
   const initials = user?.name?.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase() || 'GP';
   const timeStr = tick.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
@@ -45,11 +47,10 @@ export default function Layout() {
   return (
    <div className="flex flex-col md:flex-row min-h-screen bg-[var(--surface)]">
 {open && (
- <div
-  className="fixed inset-0 bg-black/60 z-40 md:hidden"
-  onClick={() => setOpen(false)
-  }}
-/>
+  <div
+    className="fixed inset-0 bg-black/60 z-40 md:hidden"
+    onClick={() => setOpen(false)}
+  />
 )}
       {/* ── SIDEBAR ── */}
       <aside
