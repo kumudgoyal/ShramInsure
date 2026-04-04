@@ -40,7 +40,7 @@ export default function Layout() {
   const timeStr = tick.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
   const months = parseFloat(user?.premium_paid_months || 0);
   const accidentalActive = user?.accidental_cover_active === 1 || user?.accidental_cover_active === true;
-  const monthsLeft = Math.max(0, 12 - months).toFixed(1);
+  const monthsLeft = Math.max(0, 12 - months);
 
   return (
    <div className="flex flex-col md:flex-row min-h-screen bg-[var(--surface)]">
@@ -136,7 +136,11 @@ export default function Layout() {
           </div>
           {accidentalActive
             ? <div className="font-mono" style={{fontSize:10,color:'var(--green)',fontWeight:700}}>ACTIVE · Premium Member</div>
-            : <div className="font-mono" style={{fontSize:9,color:'#f59e0b'}}>{monthsLeft} months to activate</div>
+            : monthsLeft > 0 && (
+  <div className="font-mono" style={{fontSize:9,color:'#f59e0b'}}>
+    {monthsLeft.toFixed(1)} months to activate
+  </div>
+)
           }
           {!accidentalActive && (
             <div style={{marginTop:5,height:3,background:'var(--border)',borderRadius:2,overflow:'hidden'}}>
