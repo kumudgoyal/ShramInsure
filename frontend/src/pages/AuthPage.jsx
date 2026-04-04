@@ -106,7 +106,7 @@ export default function AuthPage() {
             </div>
             <div>
               <div className="font-syne" style={{ fontSize:20, fontWeight:800, letterSpacing:'-0.02em', color:'#f0f0f0' }}>ShramInsure</div>
-              <div className="font-mono" style={{ fontSize:9, color:'#00ff87', letterSpacing:'0.12em', marginTop:2 }}>INCOME PROTECTION · PHASE 3</div>
+              <div className="font-mono" style={{ fontSize:9, color:'#00ff87', letterSpacing:'0.12em', marginTop:2 }}>INCOME PROTECTION · PHASE 2</div>
             </div>
           </div>
 
@@ -137,7 +137,7 @@ export default function AuthPage() {
           <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 14px', borderRadius:9, background:'rgba(0,255,135,0.04)', border:'1px solid rgba(0,255,135,0.1)', marginBottom:20 }}>
             <span style={{ fontSize:14 }}>🏆</span>
             <div>
-              <div className="font-mono" style={{ fontSize:9, color:'var(--green)', letterSpacing:'0.1em' }}>DEVTRAILS 2026 · PHASE 3</div>
+              <div className="font-mono" style={{ fontSize:9, color:'var(--green)', letterSpacing:'0.1em' }}>DEVTRAILS 2026 · PHASE 2</div>
               <div style={{ fontSize:12, color:'#606060', marginTop:2 }}>March 21 – April 4 · "Protect Your Worker"</div>
             </div>
           </div>

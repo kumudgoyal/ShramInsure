@@ -98,7 +98,7 @@ export default function Dashboard() {
             {/* DEVTrails badge */}
             <div style={{ display:'flex', alignItems:'center', gap:6, padding:'5px 10px', borderRadius:6, background:'rgba(245,158,11,0.08)', border:'1px solid rgba(245,158,11,0.18)' }}>
               <span style={{ fontSize:12 }}>🏆</span>
-              <span className="font-mono" style={{ fontSize:9, color:'#f59e0b', letterSpacing:'0.08em' }}>DEVTrails 2026 · Phase 3</span>
+              <span className="font-mono" style={{ fontSize:9, color:'#f59e0b', letterSpacing:'0.08em' }}>DEVTrails 2026 · Phase 2</span>
             </div>
           </div>
         </div>
