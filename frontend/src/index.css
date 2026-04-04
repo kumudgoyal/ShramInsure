@@ -106,3 +106,48 @@ body::after {
   background: linear-gradient(180deg, transparent, rgba(0,255,135,0.03));
   border-top: 1px solid rgba(0,255,135,0.08);
 }
+
+/* ✅ GLOBAL RESPONSIVE FIX */
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  overflow-x: hidden;
+}
+
+/* images */
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* containers */
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: auto;
+  padding: 16px;
+}
+
+/* MOBILE FIX */
+@media (max-width: 768px) {
+
+  h1 {
+    font-size: 24px !important;
+  }
+
+  h2 {
+    font-size: 20px !important;
+  }
+
+  p {
+    font-size: 14px !important;
+  }
+
+  button {
+    width: 100%;
+  }
+
+}
