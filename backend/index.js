@@ -1,120 +1,74 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const jwt = require('jsonwebtoken');
-const db = require('./db');
-require('dotenv').config();
+const cron = require('node-cron');
+const { processTriggerEvents } = require('./services/triggerMonitor');
 
 const app = express();
 const PORT = process.env.PORT || 5001;
-const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkey';
 
-app.use(cors());
+app.use(cors({ origin: '*', credentials: true }));
 app.use(express.json());
 
-// Helper function to handle database queries
-const runQuery = (query, params) => {
-  return new Promise((resolve, reject) => {
-    db.run(query, params, function (err) {
-      if (err) reject(err);
-      else resolve(this);
+if (process.env.NODE_ENV !== 'production') {
+  app.use((req, _res, next) => {
+    console.log(`[${new Date().toISOString().slice(11,19)}] ${req.method} ${req.path}`);
+    next();
+  });
+}
+const startServer = async () => {
+  const { initDb } = require('./config/database');
+  await initDb();
+
+  // Background Job: Process triggers for all supported cities every minute
+  cron.schedule('* * * * *', () => {
+    console.log('⏰ Running automated trigger check...');
+    const cities = ['Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Hyderabad'];
+    cities.forEach(city => {
+      try {
+        const results = processTriggerEvents(city, 'All');
+        if (results.newClaims.length > 0) {
+          console.log(`✅ Auto-triggered ${results.newClaims.length} claims in ${city}`);
+        }
+      } catch (err) {
+        console.error(`❌ Trigger check failed for ${city}:`, err.message);
+      }
     });
+  });
+
+  // Routes loaded AFTER db is ready
+  app.use('/api/auth',       require('./routes/auth'));
+  app.use('/api/policies',   require('./routes/policies'));
+  app.use('/api/claims',     require('./routes/claims'));
+  app.use('/api/analytics',  require('./routes/analytics'));
+  app.use('/api/risk',       require('./routes/risk'));
+  app.use('/api/predict',    require('./routes/predict'));
+  app.use('/api/simulate',   require('./routes/simulate'));
+  app.use('/api/fraud',      require('./routes/fraud'));
+  app.get("/", (_req, res) => {
+  res.send("ShramInsure API v3.0 is running 🚀");
+  });
+  app.get('/api/health', (_req, res) => res.json({
+    status: 'ok',
+    service: 'ShramInsure API v3.0',
+    features: ['AI Risk Engine','Zero-Touch Claims','Fraud Detection','Income Predictor','Simulation Engine','Accidental Cover'],
+    timestamp: new Date().toISOString(),
+  }));
+
+  app.use((_req, res) => res.status(404).json({ error: 'Route not found' }));
+  app.use((err, _req, res, _next) => {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Internal Server Error' });
+  });
+
+  app.listen(PORT, () => {
+    console.log('\n🛡️  ShramInsure API v3.0 → http://localhost:' + PORT);
+    console.log('🧠  AI Risk Engine : POST /api/risk/calculate');
+    console.log('🌦️  Income Predictor: GET  /api/predict/loss');
+    console.log('🎯  Simulations    : POST /api/simulate/rain | /api/simulate/pollution');
+    console.log('👤  Demo worker    : phone=9876543210');
+    console.log('🔑  Admin          : phone=9999999999\n');
   });
 };
 
-const getQuery = (query, params) => {
-  return new Promise((resolve, reject) => {
-    db.get(query, params, (err, row) => {
-      if (err) reject(err);
-      else resolve(row);
-    });
-  });
-};
-
-// 1. Signup Endpoint
-app.post('/api/auth/register', async (req, res) => {
-  const { phone, platform_id, aadhaar_last4 } = req.body;
-
-  if (!phone || !platform_id) {
-    return res.status(400).json({ error: 'Phone and Platform ID are required.' });
-  }
-
-  try {
-    const query = `INSERT INTO users (phone, platform_id, aadhaar_last4) VALUES (?, ?, ?)`;
-    const result = await runQuery(query, [phone, platform_id, aadhaar_last4]);
-    // Get the created user
-    db.get('SELECT id, phone, platform_id FROM users WHERE id = ?', [result.lastID], (err, user) => {
-      if (err) return res.status(500).json({ error: 'Failed to retrieve user after registration' });
-
-      // Create JWT token for auto-login
-      const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '24h' });
-      res.status(201).json({ 
-        message: 'Registration successful',
-        token,
-        user
-      });
-    });
-  } catch (err) {
-    if (err.message.includes('UNIQUE constraint failed')) {
-      return res.status(409).json({ error: 'Phone or Platform ID already exists.' });
-    }
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
-
-// 2. Request OTP Endpoint
-app.post('/api/auth/request-otp', async (req, res) => {
-  const { phone } = req.body;
-
-  if (!phone) {
-    return res.status(400).json({ error: 'Phone number is required.' });
-  }
-
-  try {
-    const user = await getQuery(`SELECT * FROM users WHERE phone = ?`, [phone]);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found. Please sign up first.' });
-    }
-
-    const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit OTP
-    const expiry = new Date(Date.now() + 5 * 60 * 1000); // 5-minute expiry
-
-    await runQuery(`UPDATE users SET otp = ?, otp_expiry = ? WHERE phone = ?`, [otp, expiry, phone]);
-
-    // MOCK: In a real app, send OTP via SMS. For now, we'll log it and send it back for testing.
-    console.log(`OTP for ${phone}: ${otp}`);
-    res.json({ message: 'OTP sent successfully!', otp }); // Send OTP back for easy testing
-  } catch (err) {
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
-
-// 3. Login/Verify OTP Endpoint
-app.post('/api/auth/login', async (req, res) => {
-  const { phone, otp, bypass_otp } = req.body;
-
-  if (!phone) {
-    return res.status(400).json({ error: 'Phone is required.' });
-  }
-
-  try {
-    const user = await getQuery(`SELECT * FROM users WHERE phone = ?`, [phone]);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found. Please sign up first.' });
-    }
-
-    if (!otp || user.otp !== otp || new Date(user.otp_expiry) < new Date()) {
-      return res.status(401).json({ error: 'Invalid or expired OTP.' });
-    }
-    // Clear local OTP after successful login
-    await runQuery(`UPDATE users SET otp = NULL, otp_expiry = NULL WHERE phone = ?`, [phone]);
-
-    const token = jwt.sign({ id: user.id, phone: user.phone }, JWT_SECRET, { expiresIn: '1d' });
-    res.json({ message: 'Login successful!', token, user: { phone: user.phone, platform_id: user.platform_id } });
-  } catch (err) {
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
-
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
+startServer().catch(err => { console.error('Startup error:', err); process.exit(1); });

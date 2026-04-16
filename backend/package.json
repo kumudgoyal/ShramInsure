@@ -1,27 +1,24 @@
 {
-  "name": "api",
-  "version": "1.0.0",
-  "description": "",
+  "name": "shraminsure-backend",
+  "version": "3.0.0",
+  "description": "ShramInsure API - AI-powered parametric insurance for gig workers",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "seed": "node seed-demo.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
-    "bcryptjs": "^3.0.3",
-    "cookie-parser": "^1.4.7",
+    "bcryptjs": "^2.4.3",
     "cors": "^2.8.6",
-    "dotenv": "^17.3.1",
-    "express": "^5.2.1",
-    "express-validator": "^7.3.1",
+    "dotenv": "^16.6.1",
+    "express": "^4.22.1",
     "jsonwebtoken": "^9.0.3",
-    "nodemon": "^3.1.14",
-    "pg": "^8.20.0",
-    "sqlite3": "^6.0.1"
+    "node-cron": "^3.0.3",
+    "sql.js": "^1.14.1",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
   }
 }
