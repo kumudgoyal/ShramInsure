@@ -5,6 +5,7 @@ export default function CitySelect({ value, onChange, label = 'City', geoCity, g
   const [query, setQuery]   = useState('');
   const [open, setOpen]     = useState(false);
   const [cities, setCities] = useState([]);
+  const [isEditing, setIsEditing] = useState(false);
   const ref = useRef(null);
 
   useEffect(() => {
@@ -27,26 +28,42 @@ export default function CitySelect({ value, onChange, label = 'City', geoCity, g
     ? cities.filter(c => c.city.toLowerCase().includes(query.toLowerCase())).slice(0, 8)
     : cities.slice(0, 8);
 
+  if (!isEditing && value) {
+    return (
+      <div className="form-group" style={{ position: 'relative' }}>
+        <label className="label">🏙️ {label}</label>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '.65rem 1rem', background: 'var(--bg-card2)', border: '1px solid var(--border2)', borderRadius: 'var(--radius-md)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
+            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>📍 {value}</span>
+            {geoCity === value && <span className="badge badge-green" style={{ fontSize: '.65rem' }}>(Auto-detected)</span>}
+          </div>
+          <button type="button" onClick={() => setIsEditing(true)} className="btn btn-sm btn-outline" style={{ padding: '.2rem .5rem', fontSize: '.7rem' }}>Change</button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="form-group" ref={ref} style={{ position: 'relative' }}>
       <label className="label">
         🏙️ {label}
         {geoLoading && <span style={{ marginLeft: '.4rem', fontSize: '.65rem', color: 'var(--accent-amber)' }}>⏳ detecting…</span>}
-        {geoCity && !geoLoading && <span style={{ marginLeft: '.4rem', fontSize: '.65rem', color: 'var(--accent-green)' }}>📍 auto-detected</span>}
       </label>
       <div style={{ position: 'relative' }}>
         <input
           className="input"
-          placeholder={value || 'Search city…'}
-          value={open ? query : value}
-          onFocus={() => { setOpen(true); setQuery(''); }}
+          placeholder="Type any city…"
+          value={query}
+          onFocus={() => setOpen(true)}
           onChange={e => { setQuery(e.target.value); setOpen(true); }}
-          readOnly={!open}
-          style={{ cursor: 'pointer', paddingRight: '2rem' }}
+          style={{ paddingRight: '2rem' }}
         />
-        <span style={{ position: 'absolute', right: '.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none', fontSize: '.8rem' }}>
-          {open ? '▲' : '▼'}
-        </span>
+        {query && (
+          <button type="button" style={{ position: 'absolute', right: '.5rem', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--accent-blue)', cursor: 'pointer', fontSize: '.75rem', fontWeight: 600 }}
+            onClick={() => { onChange(query); setQuery(''); setOpen(false); setIsEditing(false); }}>
+            Apply
+          </button>
+        )}
       </div>
       {open && (
         <div style={{
@@ -59,15 +76,15 @@ export default function CitySelect({ value, onChange, label = 'City', geoCity, g
             ? <div style={{ padding: '.75rem 1rem', color: 'var(--text-muted)', fontSize: '.85rem' }}>No cities found</div>
             : filtered.map(c => (
                 <div key={c.city}
-                  onClick={() => { onChange(c.city); setQuery(''); setOpen(false); }}
+                  onClick={() => { onChange(c.city); setQuery(''); setOpen(false); setIsEditing(false); }}
                   style={{
                     padding: '.6rem 1rem', cursor: 'pointer', fontSize: '.875rem',
                     color: c.city === value ? 'var(--accent-green)' : 'var(--text-primary)',
-                    background: c.city === value ? 'rgba(16,185,129,.08)' : 'transparent',
+                    background: c.city === value ? 'rgba(34,197,94,.08)' : 'transparent',
                     transition: 'background .1s',
                   }}
                   onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-card2)'}
-                  onMouseLeave={e => e.currentTarget.style.background = c.city === value ? 'rgba(16,185,129,.08)' : 'transparent'}
+                  onMouseLeave={e => e.currentTarget.style.background = c.city === value ? 'rgba(34,197,94,.08)' : 'transparent'}
                 >
                   {c.city}
                   {c.state && <span style={{ marginLeft: '.5rem', fontSize: '.72rem', color: 'var(--text-muted)' }}>{c.state}</span>}

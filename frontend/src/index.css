@@ -4,24 +4,24 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg-base:    #020817;
-  --bg-card:    #0f172a;
-  --bg-card2:   #1e293b;
-  --bg-card3:   #334155;
-  --border:     #1e293b;
-  --border2:    #334155;
-  --text-primary:   #f1f5f9;
+  --bg-base:    #0f172a;
+  --bg-card:    #1e293b;
+  --bg-card2:   #334155;
+  --bg-card3:   #475569;
+  --border:     #334155;
+  --border2:    #475569;
+  --text-primary:   #f8fafc;
   --text-secondary: #94a3b8;
-  --text-muted:     #475569;
-  --accent-green:   #10b981;
-  --accent-green2:  #059669;
+  --text-muted:     #64748b;
+  --accent-green:   #22c55e;
+  --accent-green2:  #16a34a;
   --accent-blue:    #3b82f6;
   --accent-blue2:   #2563eb;
   --accent-purple:  #8b5cf6;
   --accent-amber:   #f59e0b;
-  --accent-rose:    #f43f5e;
+  --accent-rose:    #ef4444;
   --accent-cyan:    #06b6d4;
-  --grad-green: linear-gradient(135deg, #10b981, #059669);
+  --grad-green: linear-gradient(135deg, #22c55e, #16a34a);
   --grad-blue:  linear-gradient(135deg, #3b82f6, #8b5cf6);
   --grad-amber: linear-gradient(135deg, #f59e0b, #ef4444);
   --shadow-sm:  0 1px 3px rgba(0,0,0,.4);

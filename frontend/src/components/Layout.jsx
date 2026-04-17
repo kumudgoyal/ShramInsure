@@ -14,6 +14,7 @@ const WORKER_NAV = [
 
 const ADMIN_NAV = [
   { to: '/dashboard', icon: '🏠', label: 'Overview'   },
+  { to: '/policies',  icon: '🛡️', label: 'Policy Mgmt' },
   { to: '/admin',     icon: '⚙️', label: 'Admin Panel', color: 'var(--accent-purple)' },
   { to: '/simulate',  icon: '🎯', label: 'Simulator'  },
 ];

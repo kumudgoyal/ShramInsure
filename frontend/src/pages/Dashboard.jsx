@@ -124,10 +124,12 @@ export default function Dashboard() {
         }}>
           <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#f43f5e', flexShrink: 0, animation: 'livePulse 1s ease infinite' }} />
           <div style={{ flex: 1 }}>
-            <span style={{ fontWeight: 700, color: '#f43f5e' }}>🚨 {t.label} Detected in {user?.city}</span>
-            <span style={{ marginLeft: '.75rem', color: 'var(--text-secondary)', fontSize: '.82rem' }}>
-              {t.value}{t.unit} (threshold: {t.threshold}{t.unit}) · Auto-claim processing
-            </span>
+            <div style={{ fontWeight: 800, color: '#ef4444', marginBottom: '.1rem' }}>🚨 LIVE EVENT DETECTED: {t.label} in {user?.city}</div>
+            <div style={{ color: 'var(--text-secondary)', fontSize: '.82rem', display: 'flex', gap: '.5rem', alignItems: 'center' }}>
+              <span>→ {t.value}{t.unit} (threshold: {t.threshold}{t.unit})</span>
+              <span>→ Claim processing</span>
+              <span style={{ color: 'var(--accent-green)', fontWeight: 600 }}>→ ₹ credited</span>
+            </div>
           </div>
           <span className="badge badge-rose" style={{ fontSize: '.65rem' }}>AUTO-TRIGGERING</span>
         </div>

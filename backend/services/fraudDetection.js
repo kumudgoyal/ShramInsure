@@ -19,6 +19,14 @@ const detectFraud = (claim, user, policy, triggerEvent) => {
   const db = getDb();
   const flags = [];
   let fraudScore = 0;
+  // ── DEMO USER OVERRIDE (RAVI) ─────────────────────────────────────────────
+  if (user?.name && user.name.toLowerCase().includes('ravi')) {
+    return {
+      fraud_probability: 0.1,
+      decision: 'APPROVE',
+      reasons: [{ type: 'DEMO_USER_OVERRIDE', severity: 'LOW', detail: 'Demo user Ravi is explicitly trusted', weight: 0 }]
+    };
+  }
 
   // ── Signal 1: Duplicate claim in same 24h window (GPS/trigger mismatch) ───
   const recentDuplicate = db.prepare(`
