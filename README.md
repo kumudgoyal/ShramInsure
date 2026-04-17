@@ -6,6 +6,9 @@ https://shram-insure.vercel.app/
 🎥 **Demo Video:**  
 https://shram-insure.vercel.app/
 
+📊 **Pitch Deck:**  
+https://your-pitch-deck-link.com
+
 **AI-Powered Parametric Income Protection for India's Q-Commerce Gig Workers**
 
 ShramInsure is a zero-touch, fully automated parametric insurance platform designed exclusively for the modern gig economy (Zepto, Blinkit, Instamart, Dunzo). When severe weather or civic disruptions block riders from earning, ShramInsure instantly detects the event and processes an automated payout—with zero paperwork, zero claims filing, and zero waiting.
