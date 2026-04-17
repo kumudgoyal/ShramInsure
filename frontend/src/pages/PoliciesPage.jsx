@@ -1,10 +1,10 @@
 // src/pages/PoliciesPage.jsx — Policy management with AI quote and persona
 import { useState, useEffect } from 'react';
-import { policies as policiesApi, risk as riskApi } from '../utils/api';
+import { policies as policiesApi } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/Toast';
+import CitySelect from '../components/CitySelect';
 
-const CITIES = ['Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Hyderabad', 'Pune', 'Kolkata'];
 const ZONES  = ['Central', 'North', 'South', 'East', 'West', 'Suburbs'];
 
 function Skeleton({ h = 20 }) { return <div className="skeleton" style={{ height: h, borderRadius: 6 }} />; }
@@ -112,17 +112,14 @@ export default function PoliciesPage() {
             </>
           ) : (
             <>
-              <div className="form-group">
-                <label className="label">🏙️ City</label>
-                <select className="input" value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))}>
-                  {CITIES.map(c => <option key={c}>{c}</option>)}
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="label">📍 Zone</label>
-                <select className="input" value={form.zone} onChange={e => setForm(f => ({ ...f, zone: e.target.value }))}>
-                  {ZONES.map(z => <option key={z}>{z}</option>)}
-                </select>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '.75rem' }}>
+                <CitySelect value={form.city} onChange={c => setForm(f => ({ ...f, city: c }))} label="City" />
+                <div className="form-group">
+                  <label className="label">📍 Zone</label>
+                  <select className="input" value={form.zone} onChange={e => setForm(f => ({ ...f, zone: e.target.value }))}>
+                    {ZONES.map(z => <option key={z}>{z}</option>)}
+                  </select>
+                </div>
               </div>
               <div className="form-group">
                 <label className="label">📅 Duration (weeks)</label>

@@ -129,8 +129,13 @@ export const admin = {
   logs:            (p) => get('/admin/logs', p),
 };
 
-// ── Geolocation helper ────────────────────────────────────────────────────────
-// Maps rough lat/lng to nearest supported city
+// ── Geo ───────────────────────────────────────────────────────────────────────
+export const geo = {
+  cities:  ()         => get('/geo/cities'),
+  reverse: (lat, lng) => get('/geo/reverse', { lat, lng }),
+};
+
+// ── Geolocation helper (browser → backend reverse geocode → haversine) ────────
 const CITY_COORDS = [
   { city: 'Mumbai',    lat: 19.08, lng: 72.88 },
   { city: 'Delhi',     lat: 28.70, lng: 77.10 },
@@ -139,30 +144,47 @@ const CITY_COORDS = [
   { city: 'Hyderabad', lat: 17.39, lng: 78.49 },
   { city: 'Pune',      lat: 18.52, lng: 73.86 },
   { city: 'Kolkata',   lat: 22.57, lng: 88.36 },
+  { city: 'Ahmedabad', lat: 23.02, lng: 72.57 },
+  { city: 'Jaipur',    lat: 26.91, lng: 75.79 },
+  { city: 'Surat',     lat: 21.17, lng: 72.83 },
+  { city: 'Lucknow',   lat: 26.84, lng: 80.94 },
+  { city: 'Nagpur',    lat: 21.14, lng: 79.08 },
+  { city: 'Indore',    lat: 22.71, lng: 75.86 },
+  { city: 'Bhopal',    lat: 23.25, lng: 77.41 },
+  { city: 'Patna',     lat: 25.59, lng: 85.13 },
+  { city: 'Vadodara',  lat: 22.30, lng: 73.19 },
+  { city: 'Gurgaon',   lat: 28.45, lng: 77.03 },
+  { city: 'Noida',     lat: 28.53, lng: 77.39 },
+  { city: 'Chandigarh',lat: 30.73, lng: 76.78 },
+  { city: 'Kochi',     lat: 9.93,  lng: 76.27 },
+  { city: 'Visakhapatnam', lat: 17.69, lng: 83.22 },
 ];
 
 const haversine = (lat1, lng1, lat2, lng2) => {
-  const R = 6371;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLng = (lng2 - lng1) * Math.PI / 180;
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const R = 6371, dL = (lat2-lat1)*Math.PI/180, dG = (lng2-lng1)*Math.PI/180;
+  const a = Math.sin(dL/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dG/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 };
 
 export const detectCity = () => new Promise((resolve) => {
   if (!navigator.geolocation) return resolve(null);
   navigator.geolocation.getCurrentPosition(
-    ({ coords }) => {
-      const { latitude: lat, longitude: lng } = coords;
-      let nearest = CITY_COORDS[0];
-      let minDist = Infinity;
+    async ({ coords: { latitude: lat, longitude: lng } }) => {
+      // Try backend reverse geocode first
+      try {
+        const r = await geo.reverse(lat, lng);
+        if (r.city) return resolve(r.city);
+      } catch {}
+      // Fallback: haversine nearest city
+      let nearest = CITY_COORDS[0], minD = Infinity;
       for (const c of CITY_COORDS) {
         const d = haversine(lat, lng, c.lat, c.lng);
-        if (d < minDist) { minDist = d; nearest = c; }
+        if (d < minD) { minD = d; nearest = c; }
       }
       resolve(nearest.city);
     },
-    () => resolve(null), // permission denied → null → fallback to manual
+    () => resolve(null),
     { timeout: 6000, maximumAge: 300000 }
   );
 });
+

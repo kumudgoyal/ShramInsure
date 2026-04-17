@@ -1,143 +1,153 @@
-// src/components/Layout.jsx — Sidebar + top bar shell
+// src/components/Layout.jsx — Sidebar + main shell (role-based access)
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import LiveBanner from './LiveBanner';
 import { useState } from 'react';
 
-const NAV = [
-  { to: '/dashboard', icon: '🏠', label: 'Dashboard' },
-  { to: '/policies',  icon: '🛡️', label: 'Policies' },
-  { to: '/claims',    icon: '📋', label: 'Claims' },
-  { to: '/simulate',  icon: '🎯', label: 'Simulate' },
+// Worker nav only — admin sees different items
+const WORKER_NAV = [
+  { to: '/dashboard', icon: '🏠', label: 'Dashboard'  },
+  { to: '/policies',  icon: '🛡️', label: 'My Policy'  },
+  { to: '/claims',    icon: '📋', label: 'My Claims'  },
+  { to: '/simulate',  icon: '🎯', label: 'Demo Sim'   },
+];
+
+const ADMIN_NAV = [
+  { to: '/dashboard', icon: '🏠', label: 'Overview'   },
+  { to: '/admin',     icon: '⚙️', label: 'Admin Panel', color: 'var(--accent-purple)' },
+  { to: '/simulate',  icon: '🎯', label: 'Simulator'  },
 ];
 
 const riskColor = s => s > 0.65 ? 'var(--accent-rose)' : s > 0.35 ? 'var(--accent-amber)' : 'var(--accent-green)';
-const riskLabel = s => s > 0.65 ? 'HIGH' : s > 0.35 ? 'MEDIUM' : 'LOW';
+const riskLabel = s => s > 0.65 ? 'HIGH RISK' : s > 0.35 ? 'MEDIUM' : 'LOW RISK';
 
 export default function Layout() {
   const { user, logout } = useAuth();
-  const navigate         = useNavigate();
-  const [open, setOpen]  = useState(false);
+  const navigate = useNavigate();
 
   const handleLogout = () => { logout(); navigate('/'); };
 
-  const risk    = user?.risk_score || 0.5;
-  const months  = user?.premium_paid_months || 0;
-  const accMonths = Math.max(0, 12 - months);
+  const risk          = parseFloat(user?.risk_score || 0.5);
+  const walletBalance = parseFloat(user?.wallet_balance || 0);
+  const isAdmin       = Boolean(user?.is_admin);
+  const isAccActive   = user?.accidental_cover_active === 1;
+  const months        = parseFloat(user?.premium_paid_months || 0);
+  const nav           = isAdmin ? ADMIN_NAV : WORKER_NAV;
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-base)' }}>
-      {/* ── Sidebar ─────────────────────────────────────────────── */}
+      {/* ── Sidebar ─────────────────────────────────────────────────────── */}
       <aside style={{
-        width: 260, background: 'var(--bg-card)', borderRight: '1px solid var(--border)',
-        display: 'flex', flexDirection: 'column', position: 'sticky', top: 0, height: '100vh',
-        flexShrink: 0,
+        width: 255, background: 'var(--bg-card)', borderRight: '1px solid var(--border)',
+        display: 'flex', flexDirection: 'column',
+        position: 'sticky', top: 0, height: '100vh', flexShrink: 0,
       }}>
         {/* Brand */}
-        <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '.75rem' }}>
-            <div style={{
-              width: 40, height: 40, borderRadius: 10, background: 'var(--grad-green)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem',
-            }}>🛡️</div>
+        <div style={{ padding: '1.25rem 1.2rem', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '.7rem' }}>
+            <div style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--grad-green)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', flexShrink: 0 }}>🛡️</div>
             <div>
-              <div style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--text-primary)' }}>ShramInsure</div>
-              <div style={{ fontSize: '.7rem', color: 'var(--accent-green)', fontWeight: 600, letterSpacing: '.04em' }}>INCOME PROTECTION</div>
+              <div style={{ fontWeight: 800, fontSize: '1rem' }}>ShramInsure</div>
+              <div style={{ fontSize: '.63rem', color: 'var(--accent-green)', fontWeight: 700, letterSpacing: '.05em' }}>
+                {isAdmin ? 'ADMIN PANEL' : 'Q-COMMERCE PROTECTION'}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Worker card */}
-        <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--border)', background: 'rgba(16,185,129,.04)' }}>
-          <div style={{ fontSize: '.72rem', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '.4rem', textTransform: 'uppercase', letterSpacing: '.06em' }}>Logged In As</div>
-          <div style={{ fontWeight: 700, fontSize: '.95rem', color: 'var(--text-primary)', marginBottom: '.2rem' }}>{user?.name || 'Worker'}</div>
-          <div style={{ fontSize: '.75rem', color: 'var(--text-secondary)', marginBottom: '.75rem' }}>📱 {user?.phone} · {user?.platform}</div>
-
-          {/* Risk meter */}
-          <div style={{ fontSize: '.72rem', color: 'var(--text-muted)', marginBottom: '.3rem', display: 'flex', justifyContent: 'space-between' }}>
-            <span>Risk Score</span>
-            <span style={{ color: riskColor(risk), fontWeight: 700 }}>{riskLabel(risk)}</span>
+        {/* User card */}
+        <div style={{ padding: '.9rem 1.2rem', borderBottom: '1px solid var(--border)', background: isAdmin ? 'rgba(139,92,246,.04)' : 'rgba(16,185,129,.04)' }}>
+          <div style={{ fontSize: '.68rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '.35rem' }}>
+            {isAdmin ? '⚙️ Administrator' : '🛵 Gig Worker'}
           </div>
-          <div className="risk-bar-track">
-            <div className="risk-bar-fill" style={{ width: `${risk * 100}%`, background: riskColor(risk) }} />
+          <div style={{ fontWeight: 700, fontSize: '.9rem', marginBottom: '.15rem', color: 'var(--text-primary)' }}>{user?.name || '—'}</div>
+          <div style={{ fontSize: '.73rem', color: 'var(--text-secondary)', marginBottom: '.65rem' }}>
+            📱 {user?.phone}
+            {!isAdmin && ` · ${user?.platform}`}
           </div>
 
-          {/* Accidental cover progress */}
-          {!user?.accidental_cover_active && (
-            <div style={{ marginTop: '.75rem' }}>
-              <div style={{ fontSize: '.7rem', color: 'var(--text-muted)', marginBottom: '.3rem', display: 'flex', justifyContent: 'space-between' }}>
-                <span>Accidental Cover</span>
-                <span style={{ color: 'var(--accent-amber)', fontWeight: 700 }}>{accMonths.toFixed(0)} mo left</span>
+          {/* Risk meter — workers only */}
+          {!isAdmin && (
+            <>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '.7rem', color: 'var(--text-muted)', marginBottom: '.25rem' }}>
+                <span>Risk Score</span>
+                <span style={{ color: riskColor(risk), fontWeight: 700 }}>{riskLabel(risk)}</span>
               </div>
-              <div className="risk-bar-track">
-                <div className="risk-bar-fill" style={{ width: `${Math.min((months / 12) * 100, 100)}%`, background: 'var(--accent-amber)' }} />
+              <div className="risk-bar-track" style={{ marginBottom: '.5rem' }}>
+                <div className="risk-bar-fill" style={{ width: `${risk * 100}%`, background: riskColor(risk) }} />
               </div>
-            </div>
+            </>
           )}
-          {user?.accidental_cover_active === 1 && (
-            <div style={{ marginTop: '.75rem', fontSize: '.72rem', color: 'var(--accent-green)', fontWeight: 700 }}>✅ Accidental Cover Active</div>
+
+          {/* City */}
+          {!isAdmin && (
+            <div style={{ fontSize: '.72rem', color: 'var(--text-muted)' }}>
+              📍 {user?.city}, {user?.zone}
+            </div>
           )}
         </div>
 
-        {/* Nav links */}
-        <nav style={{ flex: 1, padding: '.75rem' }}>
-          {NAV.map(({ to, icon, label }) => (
-            <NavLink key={to} to={to} style={({ isActive }) => ({
-              display: 'flex', alignItems: 'center', gap: '.75rem',
-              padding: '.65rem .9rem', borderRadius: 'var(--radius-md)',
-              marginBottom: '.2rem', textDecoration: 'none', fontSize: '.9rem', fontWeight: 600,
-              transition: 'all .15s',
-              background: isActive ? 'rgba(16,185,129,.12)' : 'transparent',
-              color:      isActive ? 'var(--accent-green)' : 'var(--text-secondary)',
-              borderLeft: isActive ? '3px solid var(--accent-green)' : '3px solid transparent',
-            })}>
-              <span style={{ fontSize: '1.1rem' }}>{icon}</span>
-              {label}
-            </NavLink>
-          ))}
-
-          {user?.is_admin && (
-            <NavLink to="/admin" style={({ isActive }) => ({
-              display: 'flex', alignItems: 'center', gap: '.75rem',
-              padding: '.65rem .9rem', borderRadius: 'var(--radius-md)',
-              marginBottom: '.2rem', textDecoration: 'none', fontSize: '.9rem', fontWeight: 600,
-              transition: 'all .15s',
-              background: isActive ? 'rgba(139,92,246,.12)' : 'transparent',
-              color:      isActive ? 'var(--accent-purple)' : 'var(--text-secondary)',
-              borderLeft: isActive ? '3px solid var(--accent-purple)' : '3px solid transparent',
-            })}>
-              <span style={{ fontSize: '1.1rem' }}>⚙️</span>Admin
-            </NavLink>
-          )}
+        {/* Nav */}
+        <nav style={{ flex: 1, padding: '.65rem .75rem' }}>
+          {nav.map(({ to, icon, label, color }) => {
+            const ac = color || 'var(--accent-green)';
+            return (
+              <NavLink key={to} to={to} style={({ isActive }) => ({
+                display: 'flex', alignItems: 'center', gap: '.7rem',
+                padding: '.6rem .85rem', borderRadius: 'var(--radius-md)',
+                marginBottom: '.15rem', textDecoration: 'none', fontSize: '.875rem', fontWeight: 600,
+                transition: 'all .15s',
+                background: isActive ? `${ac}18` : 'transparent',
+                color:      isActive ? ac : 'var(--text-secondary)',
+                borderLeft: isActive ? `3px solid ${ac}` : '3px solid transparent',
+              })}>
+                <span style={{ fontSize: '1.05rem' }}>{icon}</span>
+                {label}
+              </NavLink>
+            );
+          })}
         </nav>
 
         {/* Wallet + logout */}
-        <div style={{ padding: '1rem 1.25rem', borderTop: '1px solid var(--border)' }}>
-          <div style={{ background: 'rgba(16,185,129,.08)', border: '1px solid rgba(16,185,129,.2)', borderRadius: 'var(--radius-md)', padding: '.75rem 1rem', marginBottom: '.75rem' }}>
-            <div style={{ fontSize: '.7rem', color: 'var(--text-muted)', marginBottom: '.2rem', fontWeight: 600 }}>WALLET BALANCE</div>
-            <div style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--accent-green)' }}>₹{(user?.wallet_balance || 0).toFixed(0)}</div>
-          </div>
+        <div style={{ padding: '.9rem 1.2rem', borderTop: '1px solid var(--border)' }}>
+          {!isAdmin && (
+            <div style={{ background: 'rgba(16,185,129,.08)', border: '1px solid rgba(16,185,129,.18)', borderRadius: 'var(--radius-md)', padding: '.65rem .9rem', marginBottom: '.65rem' }}>
+              <div style={{ fontSize: '.65rem', color: 'var(--text-muted)', fontWeight: 700, marginBottom: '.15rem' }}>WALLET BALANCE</div>
+              <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--accent-green)' }}>₹{walletBalance.toLocaleString('en-IN')}</div>
+              {isAccActive && <div style={{ fontSize: '.65rem', color: 'var(--accent-green)', marginTop: '.2rem' }}>✅ Accidental Cover Active</div>}
+              {!isAccActive && months > 0 && (
+                <>
+                  <div style={{ fontSize: '.65rem', color: 'var(--text-muted)', marginTop: '.4rem', marginBottom: '.2rem' }}>Acc. Cover: {months.toFixed(0)}/12 months paid</div>
+                  <div className="risk-bar-track" style={{ height: 4 }}>
+                    <div className="risk-bar-fill" style={{ width: `${Math.min((months / 12) * 100, 100)}%`, background: 'var(--accent-amber)' }} />
+                  </div>
+                </>
+              )}
+            </div>
+          )}
           <button className="btn btn-outline btn-sm btn-block" onClick={handleLogout}>🚪 Sign Out</button>
         </div>
       </aside>
 
-      {/* ── Main content ────────────────────────────────────── */}
+      {/* ── Main content ─────────────────────────────────────────────────── */}
       <main style={{ flex: 1, overflowY: 'auto', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
         <LiveBanner />
-        {/* Story UX: savings message for workers */}
-        {user && !user.is_admin && (user.wallet_balance || 0) > 0 && (
+
+        {/* Story UX banner for workers with payouts */}
+        {!isAdmin && walletBalance > 0 && (
           <div style={{
-            padding: '.55rem 1.5rem',
-            background: 'rgba(16,185,129,.06)',
+            padding: '.5rem 1.5rem',
+            background: 'rgba(16,185,129,.05)',
             borderBottom: '1px solid rgba(16,185,129,.12)',
-            fontSize: '.8rem', color: 'var(--accent-green)', fontWeight: 600,
+            fontSize: '.78rem', color: 'var(--accent-green)', fontWeight: 600,
             display: 'flex', alignItems: 'center', gap: '.5rem',
           }}>
             <span>💚</span>
-            <span>ShramInsure has protected <strong>₹{Number(user.wallet_balance).toLocaleString('en-IN')}</strong> of your income so far — parametric payouts, zero paperwork.</span>
+            <span>ShramInsure has auto-credited <strong>₹{walletBalance.toLocaleString('en-IN')}</strong> to your UPI — zero paperwork, zero waiting.</span>
           </div>
         )}
-        <div style={{ flex: 1, maxWidth: 1200, width: '100%', margin: '0 auto', padding: '2rem 1.5rem' }}>
+
+        <div style={{ flex: 1, maxWidth: 1200, width: '100%', margin: '0 auto', padding: '1.75rem 1.5rem' }}>
           <Outlet />
         </div>
       </main>

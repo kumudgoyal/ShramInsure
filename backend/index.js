@@ -34,6 +34,7 @@ const startServer = async () => {
   app.use('/api/simulate',  require('./routes/simulate'));
   app.use('/api/fraud',     require('./routes/fraud'));
   app.use('/api/admin',     require('./routes/admin'));
+  app.use('/api/geo',       require('./routes/geo'));
 
   // 3. Health + root
   app.get('/', (_req, res) => res.json({
@@ -60,15 +61,15 @@ const startServer = async () => {
   // 5. Start listening
   app.listen(PORT, () => {
     console.log('\n🛡️  ShramInsure API v4.0 → http://localhost:' + PORT);
-    console.log('📋  Coverage Type   : INCOME LOSS ONLY (parametric)');
-    console.log('🧠  Hybrid AI Engine: POST /api/risk/calculate');
-    console.log('🎭  Persona System  : GET  /api/risk/personas');
+    console.log('📋  Coverage        : INCOME LOSS ONLY | Q-Commerce Workers');
+    console.log('🧠  Hybrid AI       : POST /api/risk/calculate');
     console.log('🌦️  Trigger Check   : POST /api/claims/trigger-check');
-    console.log('🎯  Simulations     : POST /api/simulate/weather-trigger');
+    console.log('🎯  Simulations     : POST /api/simulate/rain');
+    console.log('📍  Geo / Cities    : GET  /api/geo/cities');
     console.log('📊  Admin Insights  : GET  /api/admin/insights');
-    console.log('⚙️  Scheduler Status: GET  /api/admin/scheduler/status');
-    console.log('👤  Demo worker     : phone=9876543210  (request OTP)');
-    console.log('🔑  Admin           : phone=9999999999  (request OTP)\n');
+    console.log('⛯️  Scheduler       : GET  /api/admin/scheduler/status');
+    console.log('👤  Demo worker     : phone=9876543210');
+    console.log('🔑  Admin           : phone=9999999999\n');
   });
 
   // 6. Start background scheduler AFTER server is up

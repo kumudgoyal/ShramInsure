@@ -1,15 +1,16 @@
-// services/triggerMonitor.js — Production-grade parametric trigger engine
-// Fetches weather + AQI (real API with fallback), evaluates all thresholds, auto-creates claims
-
+// services/triggerMonitor.js — Production parametric trigger engine
+// Real API: OpenWeatherMap + WAQI. Fallback to mock. Never crashes.
 'use strict';
 
-const { getDb } = require('../config/database');
-const { v4: uuidv4 } = require('uuid');
-const { detectFraud } = require('./fraudDetection');
+const { getDb }                      = require('../config/database');
+const { v4: uuidv4 }                 = require('uuid');
+const { detectFraud }                = require('./fraudDetection');
 const { initiatePayout, generateUpiId } = require('./paymentService');
 
-// ── Mock data pools (fallback when real APIs are unavailable) ─────────────────
+// ── Platforms allowed (Q-Commerce only) ──────────────────────────────────────
+const QCOMMERCE_PLATFORMS = ['Zepto', 'Blinkit', 'Instamart', 'Dunzo'];
 
+// ── Extended India city mock data ─────────────────────────────────────────────
 const MOCK_WEATHER = {
   Mumbai:    { temp: 38, rainfall: 85,  windSpeed: 62, humidity: 88, condition: 'Heavy Rain' },
   Delhi:     { temp: 44, rainfall: 0,   windSpeed: 15, humidity: 22, condition: 'Extreme Heat' },
@@ -18,349 +19,261 @@ const MOCK_WEATHER = {
   Hyderabad: { temp: 42, rainfall: 20,  windSpeed: 25, humidity: 48, condition: 'Hot & Dusty' },
   Pune:      { temp: 36, rainfall: 30,  windSpeed: 22, humidity: 60, condition: 'Partly Cloudy' },
   Kolkata:   { temp: 37, rainfall: 55,  windSpeed: 38, humidity: 78, condition: 'Pre-Monsoon' },
+  Ahmedabad: { temp: 43, rainfall: 5,   windSpeed: 18, humidity: 25, condition: 'Hot & Dry' },
+  Jaipur:    { temp: 46, rainfall: 0,   windSpeed: 12, humidity: 15, condition: 'Extreme Heat' },
+  Surat:     { temp: 39, rainfall: 40,  windSpeed: 35, humidity: 72, condition: 'Coastal Humidity' },
+  Lucknow:   { temp: 44, rainfall: 8,   windSpeed: 14, humidity: 30, condition: 'Heat Wave' },
+  Nagpur:    { temp: 45, rainfall: 0,   windSpeed: 10, humidity: 18, condition: 'Extreme Heat' },
+  Indore:    { temp: 41, rainfall: 15,  windSpeed: 20, humidity: 35, condition: 'Hot' },
+  Bhopal:    { temp: 42, rainfall: 10,  windSpeed: 16, humidity: 32, condition: 'Hot' },
+  Patna:     { temp: 43, rainfall: 20,  windSpeed: 18, humidity: 40, condition: 'Humid' },
+  Vadodara:  { temp: 40, rainfall: 35,  windSpeed: 30, humidity: 65, condition: 'Cloudy' },
+  Gurgaon:   { temp: 43, rainfall: 2,   windSpeed: 12, humidity: 28, condition: 'Hazy' },
+  Noida:     { temp: 43, rainfall: 2,   windSpeed: 14, humidity: 30, condition: 'Hazy' },
+  Chandigarh:{ temp: 40, rainfall: 5,   windSpeed: 20, humidity: 35, condition: 'Hot' },
+  Kochi:     { temp: 33, rainfall: 90,  windSpeed: 45, humidity: 92, condition: 'Monsoon Heavy' },
+  Visakhapatnam: { temp: 38, rainfall: 50, windSpeed: 40, humidity: 80, condition: 'Coastal Rain' },
 };
 
 const MOCK_AQI = {
-  Mumbai: 165, Delhi: 312, Bangalore: 98, Chennai: 145, Hyderabad: 190, Pune: 128, Kolkata: 210,
-};
-
-const MOCK_CURFEW = {
-  Mumbai:    { active: false, zones: [] },
-  Delhi:     { active: true,  zones: ['East', 'North'], reason: 'Political unrest' },
-  Bangalore: { active: false, zones: [] },
-  Chennai:   { active: false, zones: [] },
-  Hyderabad: { active: false, zones: [] },
-  Pune:      { active: false, zones: [] },
-  Kolkata:   { active: false, zones: [] },
-};
-
-const MOCK_FLOOD = {
-  Mumbai:    { floodZones: ['Kurla', 'Andheri East', 'Sion'], severity: 'high',   waterLevel: 1.2 },
-  Chennai:   { floodZones: ['Tambaram', 'Velachery'],         severity: 'medium', waterLevel: 0.7 },
-  Hyderabad: { floodZones: [],                                severity: 'none',   waterLevel: 0 },
-  Delhi:     { floodZones: [],                                severity: 'none',   waterLevel: 0.1 },
-  Bangalore: { floodZones: [],                                severity: 'none',   waterLevel: 0.2 },
-  Pune:      { floodZones: [],                                severity: 'none',   waterLevel: 0 },
-  Kolkata:   { floodZones: ['Howrah'],                        severity: 'low',    waterLevel: 0.4 },
+  Mumbai: 165, Delhi: 312, Bangalore: 98, Chennai: 145,
+  Hyderabad: 190, Pune: 128, Kolkata: 210, Ahmedabad: 220,
+  Jaipur: 175, Surat: 145, Lucknow: 280, Nagpur: 160,
+  Indore: 140, Bhopal: 155, Patna: 295, Vadodara: 150,
+  Gurgaon: 285, Noida: 290, Chandigarh: 130, Kochi: 88,
+  Visakhapatnam: 120,
 };
 
 // ── Parametric thresholds ─────────────────────────────────────────────────────
 const THRESHOLDS = {
-  RAINFALL:    { value: 65,   unit: 'mm/hr',   label: 'Heavy Rain' },
-  TEMPERATURE: { value: 42,   unit: '°C',      label: 'Extreme Heat' },
-  AQI:         { value: 200,  unit: 'AQI',     label: 'Severe Pollution' },
-  WIND_SPEED:  { value: 50,   unit: 'km/h',    label: 'Storm Warning' },
-  CURFEW:      { value: 1,    unit: 'boolean', label: 'Civil Curfew' },
-  FLOOD_LEVEL: { value: 0.5,  unit: 'meters',  label: 'Flood Alert' },
+  RAINFALL:    { value: 65,  unit: 'mm/hr',  label: 'Heavy Rain'       },
+  TEMPERATURE: { value: 42,  unit: '°C',     label: 'Extreme Heat'     },
+  AQI:         { value: 200, unit: 'AQI',    label: 'Severe Pollution' },
+  WIND_SPEED:  { value: 50,  unit: 'km/h',   label: 'Storm Warning'    },
+  FLOOD_LEVEL: { value: 0.5, unit: 'meters', label: 'Flood Alert'      },
 };
 
-// ── Real API fetchers with fallback ──────────────────────────────────────────
+// ── HTTP helper (native https, no extra deps) ────────────────────────────────
+const httpsGet = (url, timeoutMs = 5000) => new Promise((resolve, reject) => {
+  const https = require('https');
+  const req = https.get(url, (res) => {
+    let body = '';
+    res.on('data', c => body += c);
+    res.on('end', () => {
+      try { resolve(JSON.parse(body)); }
+      catch { reject(new Error('JSON parse error')); }
+    });
+  });
+  req.on('error', reject);
+  req.setTimeout(timeoutMs, () => { req.destroy(); reject(new Error('timeout')); });
+});
 
-/**
- * fetchWeather — Tries real OpenWeatherMap API, falls back to mock + variance
- */
+// ── Weather fetcher (OpenWeatherMap → mock fallback) ─────────────────────────
 const fetchWeather = async (city) => {
-  // Real API attempt
   if (process.env.OPENWEATHER_API_KEY) {
     try {
-      const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)},IN&appid=${process.env.OPENWEATHER_API_KEY}&units=metric`;
-      const http = require('https');
-      const data = await new Promise((resolve, reject) => {
-        http.get(url, (res) => {
-          let body = '';
-          res.on('data', chunk => body += chunk);
-          res.on('end', () => {
-            try { resolve(JSON.parse(body)); }
-            catch { reject(new Error('JSON parse failed')); }
-          });
-        }).on('error', reject).setTimeout(4000, function() { this.destroy(); reject(new Error('timeout')); });
-      });
-      if (data.cod === 200) {
+      const url  = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)},IN&appid=${process.env.OPENWEATHER_API_KEY}&units=metric`;
+      const data = await httpsGet(url);
+      if (data.cod === 200 || data.cod === '200') {
         return {
           temp:      +data.main.temp.toFixed(1),
           rainfall:  +(data.rain?.['1h'] || 0).toFixed(1),
-          windSpeed: +(data.wind.speed * 3.6).toFixed(1), // m/s → km/h
+          windSpeed: +(data.wind.speed * 3.6).toFixed(1),
           humidity:  data.main.humidity,
-          condition: data.weather?.[0]?.description || 'Unknown',
+          condition: data.weather?.[0]?.description || 'unknown',
           source:    'openweathermap',
         };
       }
-    } catch (err) {
-      console.warn(`[TriggerMonitor] OpenWeatherMap failed for ${city}: ${err.message} — using mock`);
+    } catch (e) {
+      console.warn(`[Weather] OpenWeatherMap failed for ${city}: ${e.message}`);
     }
   }
-
-  // Fallback mock with realistic variance
-  const base = MOCK_WEATHER[city] || { temp: 30, rainfall: 10, windSpeed: 20, humidity: 60, condition: 'Clear' };
+  const base = MOCK_WEATHER[city] || { temp: 33, rainfall: 20, windSpeed: 18, humidity: 60, condition: 'Partly Cloudy' };
   return {
     ...base,
-    rainfall:  +(base.rainfall  + (Math.random() * 24 - 12)).toFixed(1),
-    temp:      +(base.temp      + (Math.random() * 4  - 2)).toFixed(1),
-    windSpeed: +(base.windSpeed + (Math.random() * 12 - 6)).toFixed(1),
-    humidity:  +(base.humidity  + (Math.random() * 10 - 5)).toFixed(0),
+    rainfall:  +(base.rainfall  + (Math.random() * 20 - 10)).toFixed(1),
+    temp:      +(base.temp      + (Math.random() * 3  - 1.5)).toFixed(1),
+    windSpeed: +(base.windSpeed + (Math.random() * 10 - 5)).toFixed(1),
+    humidity:  +(base.humidity  + (Math.random() * 8  - 4)).toFixed(0),
     source:    'mock_fallback',
   };
 };
 
-/**
- * fetchAQI — Tries CPCB/IQAir API, falls back to mock + variance
- */
+// ── AQI fetcher (WAQI → mock fallback) ───────────────────────────────────────
 const fetchAQI = async (city) => {
-  if (process.env.IQAIR_API_KEY) {
+  if (process.env.WAQI_API_KEY) {
     try {
-      const url = `https://api.airvisual.com/v2/city?city=${encodeURIComponent(city)}&state=Maharashtra&country=India&key=${process.env.IQAIR_API_KEY}`;
-      const http = require('https');
-      const data = await new Promise((resolve, reject) => {
-        http.get(url, (res) => {
-          let body = '';
-          res.on('data', chunk => body += chunk);
-          res.on('end', () => {
-            try { resolve(JSON.parse(body)); }
-            catch { reject(new Error('JSON parse failed')); }
-          });
-        }).on('error', reject).setTimeout(4000, function() { this.destroy(); reject(new Error('timeout')); });
-      });
-      if (data.status === 'success') {
-        return { aqi: data.data.current.pollution.aqius, source: 'iqair' };
+      const url  = `https://api.waqi.info/feed/${encodeURIComponent(city)}/?token=${process.env.WAQI_API_KEY}`;
+      const data = await httpsGet(url);
+      if (data.status === 'ok' && data.data?.aqi) {
+        return { aqi: parseInt(data.data.aqi), source: 'waqi', city: data.data.city?.name };
       }
-    } catch (err) {
-      console.warn(`[TriggerMonitor] IQAir failed for ${city}: ${err.message} — using mock`);
+    } catch (e) {
+      console.warn(`[AQI] WAQI failed for ${city}: ${e.message}`);
     }
   }
-
-  const base = MOCK_AQI[city] || 120;
-  return { aqi: +(base + (Math.random() * 50 - 25)).toFixed(0), source: 'mock_fallback' };
+  const base = MOCK_AQI[city] || 130;
+  return { aqi: Math.max(20, Math.round(base + (Math.random() * 40 - 20))), source: 'mock_fallback' };
 };
 
-const fetchCurfew = (city, zone) => {
-  const data = MOCK_CURFEW[city] || { active: false, zones: [] };
-  return {
-    active: data.active && (data.zones.length === 0 || data.zones.includes(zone)),
-    reason: data.reason || null,
-    zones:  data.zones,
-    source: 'mock_fallback',
-  };
+// ── Reverse geocoding (OpenCage → haversine fallback) ────────────────────────
+const CITY_COORDS = [
+  { city: 'Mumbai',    lat: 19.08, lng: 72.88, state: 'Maharashtra' },
+  { city: 'Delhi',     lat: 28.70, lng: 77.10, state: 'Delhi' },
+  { city: 'Bangalore', lat: 12.97, lng: 77.59, state: 'Karnataka' },
+  { city: 'Chennai',   lat: 13.08, lng: 80.27, state: 'Tamil Nadu' },
+  { city: 'Hyderabad', lat: 17.39, lng: 78.49, state: 'Telangana' },
+  { city: 'Pune',      lat: 18.52, lng: 73.86, state: 'Maharashtra' },
+  { city: 'Kolkata',   lat: 22.57, lng: 88.36, state: 'West Bengal' },
+  { city: 'Ahmedabad', lat: 23.02, lng: 72.57, state: 'Gujarat' },
+  { city: 'Jaipur',    lat: 26.91, lng: 75.79, state: 'Rajasthan' },
+  { city: 'Surat',     lat: 21.17, lng: 72.83, state: 'Gujarat' },
+  { city: 'Lucknow',   lat: 26.84, lng: 80.94, state: 'Uttar Pradesh' },
+  { city: 'Nagpur',    lat: 21.14, lng: 79.08, state: 'Maharashtra' },
+  { city: 'Indore',    lat: 22.71, lng: 75.86, state: 'Madhya Pradesh' },
+  { city: 'Bhopal',    lat: 23.25, lng: 77.41, state: 'Madhya Pradesh' },
+  { city: 'Patna',     lat: 25.59, lng: 85.13, state: 'Bihar' },
+  { city: 'Vadodara',  lat: 22.30, lng: 73.19, state: 'Gujarat' },
+  { city: 'Gurgaon',   lat: 28.45, lng: 77.03, state: 'Haryana' },
+  { city: 'Noida',     lat: 28.53, lng: 77.39, state: 'Uttar Pradesh' },
+  { city: 'Chandigarh',lat: 30.73, lng: 76.78, state: 'Chandigarh' },
+  { city: 'Kochi',     lat: 9.93,  lng: 76.27, state: 'Kerala' },
+  { city: 'Visakhapatnam', lat: 17.69, lng: 83.22, state: 'Andhra Pradesh' },
+];
+
+const haversine = (lat1, lng1, lat2, lng2) => {
+  const R = 6371;
+  const dL = (lat2 - lat1) * Math.PI / 180;
+  const dG = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dL / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dG / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 };
 
-const fetchFlood = (city) => {
-  return { ...(MOCK_FLOOD[city] || { floodZones: [], severity: 'none', waterLevel: 0 }), source: 'mock_fallback' };
+const reverseGeocode = async (lat, lng) => {
+  if (process.env.GEO_API_KEY) {
+    try {
+      const url  = `https://api.opencagedata.com/geocode/v1/json?q=${lat}+${lng}&key=${process.env.GEO_API_KEY}&language=en&limit=1&countrycode=in`;
+      const data = await httpsGet(url);
+      if (data.results?.length > 0) {
+        const comp = data.results[0].components;
+        const city = comp.city || comp.town || comp.village || comp.state_district;
+        const state = comp.state;
+        return { city, state, source: 'opencage' };
+      }
+    } catch (e) {
+      console.warn(`[Geo] OpenCage failed: ${e.message}`);
+    }
+  }
+  // Haversine fallback — find nearest city
+  let nearest = CITY_COORDS[0], minDist = Infinity;
+  for (const c of CITY_COORDS) {
+    const d = haversine(lat, lng, c.lat, c.lng);
+    if (d < minDist) { minDist = d; nearest = c; }
+  }
+  return { city: nearest.city, state: nearest.state, source: 'haversine_fallback', distanceKm: Math.round(minDist) };
 };
 
 // ── Trigger evaluator ─────────────────────────────────────────────────────────
-
-/**
- * evaluateTriggers — Evaluate all 6 parametric triggers for a given city/zone
- * @returns {Promise<{triggered: object[], weather: object, aqi: object, curfew: object, flood: object}>}
- */
 const evaluateTriggers = async (city, zone) => {
-  const [weather, aqiData, curfew, flood] = await Promise.all([
-    fetchWeather(city),
-    fetchAQI(city),
-    Promise.resolve(fetchCurfew(city, zone)),
-    Promise.resolve(fetchFlood(city)),
-  ]);
-
+  const [weather, aqiData] = await Promise.all([fetchWeather(city), fetchAQI(city)]);
   const aqi = aqiData.aqi;
   const triggered = [];
 
-  // Trigger 1: Heavy Rain
-  if (weather.rainfall > THRESHOLDS.RAINFALL.value) {
-    triggered.push({
-      type: 'WEATHER_RAIN', label: 'Heavy Rain Alert',
-      value: weather.rainfall, threshold: THRESHOLDS.RAINFALL.value, unit: THRESHOLDS.RAINFALL.unit,
-      severity: weather.rainfall > 110 ? 'critical' : 'high', breached: true, data: weather,
-    });
-  }
+  if (weather.rainfall > THRESHOLDS.RAINFALL.value)
+    triggered.push({ type: 'WEATHER_RAIN', label: 'Heavy Rain Alert', value: weather.rainfall, threshold: THRESHOLDS.RAINFALL.value, unit: 'mm/hr', severity: weather.rainfall > 110 ? 'critical' : 'high', data: weather });
 
-  // Trigger 2: Extreme Heat
-  if (weather.temp > THRESHOLDS.TEMPERATURE.value) {
-    triggered.push({
-      type: 'WEATHER_HEAT', label: 'Extreme Heat Warning',
-      value: weather.temp, threshold: THRESHOLDS.TEMPERATURE.value, unit: THRESHOLDS.TEMPERATURE.unit,
-      severity: weather.temp > 46 ? 'critical' : 'high', breached: true, data: weather,
-    });
-  }
+  if (weather.temp > THRESHOLDS.TEMPERATURE.value)
+    triggered.push({ type: 'WEATHER_HEAT', label: 'Extreme Heat Warning', value: weather.temp, threshold: THRESHOLDS.TEMPERATURE.value, unit: '°C', severity: weather.temp > 46 ? 'critical' : 'high', data: weather });
 
-  // Trigger 3: Air Quality Emergency
-  if (aqi > THRESHOLDS.AQI.value) {
-    triggered.push({
-      type: 'POLLUTION_AQI', label: 'Air Quality Emergency',
-      value: aqi, threshold: THRESHOLDS.AQI.value, unit: THRESHOLDS.AQI.unit,
-      severity: aqi > 300 ? 'critical' : 'high', breached: true, data: { aqi, source: aqiData.source },
-    });
-  }
+  if (aqi > THRESHOLDS.AQI.value)
+    triggered.push({ type: 'POLLUTION_AQI', label: 'Air Quality Emergency', value: aqi, threshold: THRESHOLDS.AQI.value, unit: 'AQI', severity: aqi > 300 ? 'critical' : 'high', data: { aqi, source: aqiData.source } });
 
-  // Trigger 4: Storm / High Wind
-  if (weather.windSpeed > THRESHOLDS.WIND_SPEED.value) {
-    triggered.push({
-      type: 'WEATHER_STORM', label: 'Storm Warning',
-      value: weather.windSpeed, threshold: THRESHOLDS.WIND_SPEED.value, unit: THRESHOLDS.WIND_SPEED.unit,
-      severity: weather.windSpeed > 80 ? 'critical' : 'high', breached: true, data: weather,
-    });
-  }
+  if (weather.windSpeed > THRESHOLDS.WIND_SPEED.value)
+    triggered.push({ type: 'WEATHER_STORM', label: 'Storm Warning', value: weather.windSpeed, threshold: THRESHOLDS.WIND_SPEED.value, unit: 'km/h', severity: weather.windSpeed > 80 ? 'critical' : 'high', data: weather });
 
-  // Trigger 5: Civil Curfew
-  if (curfew.active) {
-    triggered.push({
-      type: 'CIVIL_CURFEW', label: 'Zone Closure / Curfew',
-      value: 1, threshold: 0, unit: 'boolean',
-      severity: 'critical', breached: true, data: curfew,
-    });
-  }
-
-  // Trigger 6: Flood Alert
-  if (flood.waterLevel > THRESHOLDS.FLOOD_LEVEL.value) {
-    triggered.push({
-      type: 'FLOOD_ALERT', label: 'Flood Zone Alert',
-      value: flood.waterLevel, threshold: THRESHOLDS.FLOOD_LEVEL.value, unit: 'meters',
-      severity: flood.waterLevel > 1 ? 'critical' : 'high', breached: true, data: flood,
-    });
-  }
-
-  return { triggered, weather, aqi: aqiData, curfew, flood };
+  return { triggered, weather, aqi: aqiData };
 };
 
-// ── Full auto-claim pipeline ──────────────────────────────────────────────────
-
-/**
- * processTriggerEvents — For each triggered event:
- *   1. Log to trigger_events
- *   2. Find affected active policyholders
- *   3. Run fraud detection
- *   4. Auto-approve/reject/review
- *   5. Process payout if approved
- */
+// ── Auto-claim pipeline ───────────────────────────────────────────────────────
 const processTriggerEvents = async (city, zone) => {
   const db = getDb();
-  const { triggered, weather, aqi, curfew, flood } = await evaluateTriggers(city, zone);
-  const newClaims = [];
-  const logs = [];
+  const { triggered, weather, aqi } = await evaluateTriggers(city, zone);
+  const newClaims = [], logs = [];
 
-  if (triggered.length === 0) {
-    logs.push({ step: 'evaluate', status: 'ok', message: `No triggers breached for ${city} - ${zone}` });
-    return { triggered, newClaims, logs, weather, aqi, curfew, flood };
+  if (!triggered.length) {
+    logs.push({ step: 'evaluate', status: 'ok', message: `No triggers for ${city}` });
+    return { triggered, newClaims, logs, weather, aqi };
   }
 
-  logs.push({ step: 'evaluate', status: 'ok', message: `${triggered.length} trigger(s) breached for ${city} - ${zone}` });
+  logs.push({ step: 'evaluate', status: 'ok', message: `${triggered.length} trigger(s) in ${city}` });
 
   for (const event of triggered) {
-    // Step 1: Log trigger event
-    let triggerLogId;
+    // 1. Log trigger
+    let trigId;
     try {
-      const triggerResult = db.prepare(`
-        INSERT INTO trigger_events (event_type, city, zone, severity, value, unit, threshold, breached, raw_data)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)
+      const r = db.prepare(`
+        INSERT INTO trigger_events (event_type,city,zone,severity,value,unit,threshold,breached,raw_data)
+        VALUES (?,?,?,?,?,?,?,1,?)
       `).run(event.type, city, zone || 'All', event.severity, event.value, event.unit, event.threshold, JSON.stringify(event.data));
-      triggerLogId = triggerResult.lastID;
-      logs.push({ step: 'log_trigger', triggerType: event.type, id: triggerLogId, status: 'ok' });
-    } catch (err) {
-      logs.push({ step: 'log_trigger', triggerType: event.type, status: 'error', error: err.message });
-      continue;
-    }
+      trigId = r.lastID;
+    } catch (e) { logs.push({ step: 'log_trigger', status: 'error', error: e.message }); continue; }
 
-    // Step 2: Find affected active policyholders
-    const affectedPolicies = db.prepare(`
-      SELECT p.*, u.id as uid, u.avg_weekly_income, u.phone, u.name, u.wallet_balance
-      FROM policies p
-      JOIN users u ON u.id = p.user_id
-      WHERE p.status = 'active' AND p.city = ?
-        AND (p.zone = ? OR ? IS NULL OR ? = 'All')
-        AND p.end_date >= datetime('now')
-    `).all(city, zone || 'All', zone || 'All', zone || 'All');
+    // 2. Find active Q-Commerce policyholders in this city
+    const policies = db.prepare(`
+      SELECT p.*, u.id as uid, u.avg_weekly_income, u.phone, u.name, u.platform, u.wallet_balance
+      FROM policies p JOIN users u ON u.id = p.user_id
+      WHERE p.status = 'active' AND p.city = ? AND p.end_date >= datetime('now')
+        AND u.is_admin = 0
+    `).all(city);
 
-    logs.push({ step: 'find_policies', triggerType: event.type, count: affectedPolicies.length, status: 'ok' });
+    for (const pol of policies) {
+      // Dedup: one claim per trigger type per day per policy
+      const exists = db.prepare(
+        `SELECT id FROM claims WHERE policy_id=? AND trigger_type=? AND created_at>=date('now')`
+      ).get(pol.id, event.type);
+      if (exists) continue;
 
-    for (const policy of affectedPolicies) {
-      // Deduplicate: skip if claim already exists for this trigger today
-      const existing = db.prepare(`
-        SELECT id FROM claims WHERE policy_id = ? AND trigger_type = ? AND created_at >= date('now')
-      `).get(policy.id, event.type);
+      const weeklyIncome = parseFloat(pol.avg_weekly_income) || 3500;
+      const sevMult      = event.severity === 'critical' ? 0.90 : 0.70;
+      const payAmt       = +Math.max((weeklyIncome / 7) * sevMult, 150).toFixed(2);
 
-      if (existing) {
-        logs.push({ step: 'dedup', policyId: policy.id, triggerType: event.type, status: 'skipped', reason: 'already_claimed_today' });
-        continue;
-      }
+      const fraud = detectFraud({ trigger_type: event.type, location: city, payout_amount: payAmt }, { id: pol.user_id }, pol, event);
 
-      // Step 3: Calculate payout
-      const weeklyIncome = parseFloat(policy.avg_weekly_income) || 3500;
-      const dailyIncome = weeklyIncome / 7;
-      const severityMult = event.severity === 'critical' ? 0.90 : event.severity === 'high' ? 0.70 : 0.50;
-      const payoutAmount = +Math.max(dailyIncome * severityMult, 150).toFixed(2);
+      const claimNo  = `CLM-${Date.now()}-${Math.floor(Math.random() * 9999).toString().padStart(4,'0')}`;
+      const claimSt  = fraud.decision === 'REJECT' ? 'rejected' : fraud.decision === 'APPROVE' ? 'approved' : 'pending';
 
-      // Step 4: Fraud detection
-      const claimData = { trigger_type: event.type, location: city, payout_amount: payoutAmount };
-      const fraud = detectFraud(claimData, { id: policy.user_id }, policy, event);
-
-      logs.push({
-        step: 'fraud_check', policyId: policy.id, triggerType: event.type,
-        fraudScore: fraud.fraudScore, decision: fraud.decision, status: 'ok',
-      });
-
-      // Step 5: Auto-approve / reject / review
-      const claimNumber = `CLM-${Date.now()}-${Math.floor(Math.random() * 9999).toString().padStart(4, '0')}`;
-      const claimStatus = fraud.decision === 'REJECT' ? 'rejected'
-                        : fraud.decision === 'APPROVE' ? 'approved'
-                        : 'pending';
-
-      let insertedId;
+      let cId;
       try {
-        const inserted = db.prepare(`
-          INSERT INTO claims (claim_number, policy_id, user_id, trigger_type, trigger_value, status,
-            payout_amount, fraud_score, fraud_flags, auto_triggered, location, processed_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, datetime('now'))
-        `).run(
-          claimNumber, policy.id, policy.user_id, event.type,
-          JSON.stringify(event.data), claimStatus, payoutAmount,
-          fraud.fraudScore, JSON.stringify(fraud.flags), city
-        );
-        insertedId = inserted.lastID;
-        logs.push({ step: 'create_claim', claimNumber, status: claimStatus, payout: payoutAmount });
-      } catch (err) {
-        logs.push({ step: 'create_claim', policyId: policy.id, status: 'error', error: err.message });
-        continue;
-      }
+        const cr = db.prepare(`
+          INSERT INTO claims (claim_number,policy_id,user_id,trigger_type,trigger_value,status,
+            payout_amount,fraud_score,fraud_flags,auto_triggered,location,processed_at)
+          VALUES (?,?,?,?,?,?,?,?,?,1,?,datetime('now'))
+        `).run(claimNo, pol.id, pol.user_id, event.type, JSON.stringify(event.data),
+               claimSt, payAmt, fraud.fraudScore, JSON.stringify(fraud.flags), city);
+        cId = cr.lastID;
+      } catch (e) { continue; }
 
-      // Step 6: Process payout if approved
-      if (claimStatus === 'approved') {
+      if (claimSt === 'approved') {
         try {
-          const upiId = generateUpiId(policy.phone);
-          const payResult = await initiatePayout({
-            amount:      payoutAmount,
-            upiId,
-            name:        policy.name,
-            purpose:     'insurance_claim',
-            referenceId: claimNumber,
-          });
-
-          if (payResult.success) {
-            db.prepare(`
-              INSERT INTO payouts (claim_id, user_id, amount, method, txn_id, status, upi_id, settled_at)
-              VALUES (?, ?, ?, 'UPI', ?, 'success', ?, datetime('now'))
-            `).run(insertedId, policy.user_id, payoutAmount, payResult.txnId, upiId);
-
-            db.prepare(`UPDATE claims SET status = 'paid', paid_at = datetime('now') WHERE id = ?`).run(insertedId);
-            db.prepare(`UPDATE users SET wallet_balance = wallet_balance + ? WHERE id = ?`).run(payoutAmount, policy.user_id);
-
-            logs.push({ step: 'payout', claimNumber, txnId: payResult.txnId, amount: payoutAmount, status: 'success' });
-            newClaims.push({ claimNumber, policyId: policy.id, status: 'paid', payoutAmount, txnId: payResult.txnId });
+          const upiId = generateUpiId(pol.phone);
+          const pay   = await initiatePayout({ amount: payAmt, upiId, name: pol.name, purpose: 'insurance_claim', referenceId: claimNo });
+          if (pay.success) {
+            db.prepare(`INSERT INTO payouts (claim_id,user_id,amount,method,txn_id,status,upi_id,settled_at) VALUES (?,?,?,'UPI',?,'processed',?,datetime('now'))`).run(cId, pol.user_id, payAmt, pay.txnId, upiId);
+            db.prepare(`UPDATE claims SET status='paid', paid_at=datetime('now') WHERE id=?`).run(cId);
+            db.prepare(`UPDATE users SET wallet_balance=wallet_balance+? WHERE id=?`).run(payAmt, pol.user_id);
+            newClaims.push({ claimNo, status: 'paid', payAmt, txnId: pay.txnId });
           } else {
-            // Payout failed — revert to pending
-            db.prepare(`UPDATE claims SET status = 'pending' WHERE id = ?`).run(insertedId);
-            logs.push({ step: 'payout', claimNumber, status: 'failed', error: payResult.error });
-            newClaims.push({ claimNumber, policyId: policy.id, status: 'pending', payoutAmount, paymentError: payResult.error });
+            db.prepare(`UPDATE claims SET status='pending' WHERE id=?`).run(cId);
+            newClaims.push({ claimNo, status: 'pending', payAmt });
           }
-        } catch (err) {
-          db.prepare(`UPDATE claims SET status = 'pending' WHERE id = ?`).run(insertedId);
-          logs.push({ step: 'payout', claimNumber, status: 'error', error: err.message });
-          newClaims.push({ claimNumber, policyId: policy.id, status: 'pending', payoutAmount, paymentError: err.message });
-        }
+        } catch { db.prepare(`UPDATE claims SET status='pending' WHERE id=?`).run(cId); }
       } else {
-        newClaims.push({ claimNumber, policyId: policy.id, status: claimStatus, payoutAmount });
+        newClaims.push({ claimNo, status: claimSt, payAmt });
       }
     }
   }
 
-  return { triggered, newClaims, logs, weather, aqi, curfew, flood };
+  return { triggered, newClaims, logs, weather, aqi };
 };
 
-module.exports = { evaluateTriggers, processTriggerEvents, fetchWeather, fetchAQI, THRESHOLDS, MOCK_WEATHER, MOCK_AQI };
+module.exports = { evaluateTriggers, processTriggerEvents, fetchWeather, fetchAQI, reverseGeocode, THRESHOLDS, MOCK_WEATHER, MOCK_AQI, CITY_COORDS, QCOMMERCE_PLATFORMS };
