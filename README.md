@@ -4,10 +4,10 @@
 https://shram-insure.vercel.app/
 
 🎥 **Demo Video:**  
-https://shram-insure.vercel.app/
+https://drive.google.com/drive/folders/1t6YedGUjufOxLaS6ZHi0KW01vtTS_8U2?usp=sharing
 
 📊 **Pitch Deck:**  
-https://your-pitch-deck-link.com
+https://drive.google.com/file/d/1lIYEsKTPnCH4a32wQvrT8cOorA90EaS7/view?usp=sharing
 
 **AI-Powered Parametric Income Protection for India's Q-Commerce Gig Workers**
 
